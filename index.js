@@ -11,23 +11,6 @@ app.get('/', (req, res) => {
   </body>`)
 });
 //====================================
-
-client.on('ready', () => {
-  console.clear()
-console.log(`${client.user.tag} is Online 🟢`);
-    client.user.setStatus("idle")
-    let status =
-        [
-        `${client.user.username}`,
-        `My Dev M7md6565`,
-        `My Prefix ${PREFIX} | Mention Me`,
-        ]
-    setInterval(()=>{
-        client.user.setActivity(status[Math.floor(Math.random()*status.length)]);
-        },8000)
-});
-//====================================
-
 const Discord = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -43,6 +26,22 @@ const client = new Discord.Client({
 const TIME_ZONE = 'Asia/Gaza';
 const PREFIX = '+';
 const COMMAND = 'جدول';
+
+client.on('ready', () => {
+  console.clear()
+console.log(`${client.user.tag} is Online 🟢`);
+    client.user.setStatus("idle")
+    let status =
+        [
+        `${client.user.username}`,
+        `My Dev M7md6565`,
+        `My Prefix ${PREFIX} | Mention Me`,
+        ]
+    setInterval(()=>{
+        client.user.setActivity(status[Math.floor(Math.random()*status.length)]);
+        },8000)
+});
+
 
 // الجمعة التي بدأت فيها دورة النوم خارج البيت
 const ANCHOR_DATE = '2026-10-23';
