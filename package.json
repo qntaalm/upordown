@@ -1,0 +1,13 @@
+{
+  "name": "weekly-sleep-schedule",
+  "version": "1.0.0",
+  "description": "جدول أسبوعي للنوم خارج البيت والدوام",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "discord.js": "^13.17.1"
+  }
+}
