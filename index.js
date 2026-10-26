@@ -10,7 +10,7 @@ app.get('/', (req, res) => {
   <center><h1>Bot 24H ON!</h1></center
   </body>`)
 });
-//====================================
+//====================================  
 const Discord = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -27,23 +27,7 @@ const TIME_ZONE = 'Asia/Gaza';
 const PREFIX = '+';
 const COMMAND = 'جدول';
 
-client.on('ready', () => {
-  console.clear()
-console.log(`${client.user.tag} is Online 🟢`);
-    client.user.setStatus("idle")
-    let status =
-        [
-        `${client.user.username}`,
-        `My Dev M7md6565`,
-        `My Prefix ${PREFIX} | Mention Me`,
-        ]
-    setInterval(()=>{
-        client.user.setActivity(status[Math.floor(Math.random()*status.length)]);
-        },8000)
-});
-
-
-// الجمعة التي بدأت فيها دورة النوم خارج البيت
+// الجمعة 23/10/2026: خارج البيت
 const ANCHOR_DATE = '2026-10-23';
 
 const DATA_FILE = path.join(__dirname, 'schedule-message.json');
@@ -62,6 +46,30 @@ if (fs.existsSync(DATA_FILE)) {
 function saveData() {
     fs.writeFileSync(DATA_FILE, JSON.stringify(saved, null, 2));
 }
+
+// حالة البوت
+client.once('ready', () => {
+    console.clear();
+    console.log(`${client.user.tag} is Online 🟢`);
+
+    client.user.setStatus('idle');
+
+    const status = [
+        `${client.user.username}`,
+        'My Dev M7md6565',
+        `My Prefix ${PREFIX} | Mention Me`
+    ];
+
+    client.user.setActivity(
+        status[Math.floor(Math.random() * status.length)]
+    );
+
+    setInterval(() => {
+        client.user.setActivity(
+            status[Math.floor(Math.random() * status.length)]
+        );
+    }, 8000);
+});
 
 // تاريخ اليوم بتوقيت فلسطين
 function getToday() {
@@ -106,8 +114,7 @@ function getWeekStart(dateString) {
     return addDays(dateString, -daysSinceSaturday);
 }
 
-// فترة الجدول: السبت إلى الجمعة.
-// إذا كان اليوم الجمعة، جهّز جدول السبت القادم.
+// إذا كان اليوم الجمعة، يبدأ الجدول من السبت القادم
 function getScheduleStart(today) {
     const day = toDate(today).getUTCDay();
 
@@ -118,7 +125,7 @@ function getScheduleStart(today) {
     return getWeekStart(today);
 }
 
-// تنسيق التاريخ بالأرقام الإنجليزية
+// تنسيق التاريخ
 function formatDate(dateString) {
     const date = toDate(dateString);
 
@@ -129,7 +136,7 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
-// أسماء الأيام بالعربي
+// أسماء الأيام
 const DAYS = [
     'الأحد',
     'الاثنين',
@@ -144,17 +151,14 @@ function getDayName(dateString) {
     return DAYS[toDate(dateString).getUTCDay()];
 }
 
-// النوم خارج البيت يومًا بعد يوم.
-// الجمعة 23/10/2026: خارج البيت.
-// السبت 24/10: البيت.
-// الأحد 25/10: خارج البيت، وهكذا.
+// النوم خارج البيت يومًا بعد يوم
 function sleepsOutside(dateString) {
     const difference = daysBetween(ANCHOR_DATE, dateString);
 
     return ((difference % 2) + 2) % 2 === 0;
 }
 
-
+// تحويل التاريخ من DD/MM/YYYY إلى YYYY-MM-DD
 function parseDateInput(input) {
     const match = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
 
@@ -177,44 +181,167 @@ function parseDateInput(input) {
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+// إنشاء إيمبد الجدول الرئيسي
+function buildEmbed() {
+    const today = getToday();
+    const weekStart = getScheduleStart(today);
+    const weekEnd = addDays(weekStart, 6);
+
+    const days = [];
+
+    // ترتيب الأيام من السبت إلى الجمعة
+    for (let i = 0; i < 7; i++) {
+        const date = addDays(weekStart, i);
+        const dayNumber = toDate(date).getUTCDay();
+
+        const outside = sleepsOutside(date);
+
+        // السبت والخميس يظهران دائمًا
+        const isRequiredDay =
+            dayNumber === 6 || dayNumber === 4;
+
+        // إظهار أيام الخارج، والسبت والخميس،
+        // واليوم الحالي حتى لو كان النوم في البيت
+        if (!isRequiredDay && !outside && date !== today) {
+            continue;
+        }
+
+        const todayMark = date === today ? '📍 ' : '';
+
+        const dayEmoji =
+            dayNumber === 6 || dayNumber === 4
+                ? '⬅️ '
+                : '';
+
+        const sleepStatus = outside
+            ? '🟢 **تحت**'
+            : '🔴 فوق';
+
+        days.push(
+            `**${todayMark}| ${dayEmoji}${getDayName(date)} | __${formatDate(date)}__** ${sleepStatus}`
+        );
+    }
+
+    const embed = new Discord.MessageEmbed()
+        .setColor('#3498DB')
+        .setTitle(
+            `📅 الــجـدول | ${getDayName(today)} ${formatDate(today)}`
+        )
+        .setDescription(
+            `الـفـتـرة: **${formatDate(weekStart)} - ${formatDate(weekEnd)}**\n\n` +
+            days.join('\n\n')
+        )
+        .setFooter({
+            text: 'تم إنشاؤه بواسطة أبو أحمد'
+        })
+        .setTimestamp(new Date());
+
+    return { embed, weekStart, today };
+}
+
+// تحديث رسالة الجدول المحفوظة تلقائيًا
+async function updateSchedule(force = false) {
+    if (updating) return;
+
+    updating = true;
+
+    try {
+        if (!saved.channelId || !saved.messageId) {
+            return;
+        }
+
+        const { embed, weekStart, today } = buildEmbed();
+
+        // لا نعدّل الرسالة إذا لم يتغير اليوم أو الأسبوع
+        if (
+            !force &&
+            saved.weekStart === weekStart &&
+            saved.lastDate === today
+        ) {
+            return;
+        }
+
+        const channel = await client.channels.fetch(saved.channelId);
+
+        if (!channel || !channel.isText()) {
+            console.error('القناة غير موجودة أو ليست قناة نصية.');
+            return;
+        }
+
+        const message = await channel.messages.fetch(saved.messageId);
+
+        // تعديل نفس الإيمبد، وليس إرسال رسالة جديدة
+        await message.edit({ embeds: [embed] });
+
+        saved.weekStart = weekStart;
+        saved.lastDate = today;
+
+        saveData();
+
+        console.log(
+            `✅ تم تحديث الجدول | ${today} | بداية الأسبوع: ${weekStart}`
+        );
+    } catch (error) {
+        console.error('❌ تعذر تحديث الجدول:', error.message);
+    } finally {
+        updating = false;
+    }
+}
+
+// تشغيل التحديث التلقائي
+client.once('ready', async () => {
+    // تحديث الجدول عند تشغيل البوت
+    await updateSchedule(true);
+
+    // فحص التاريخ كل دقيقة
+    setInterval(() => {
+        updateSchedule(false);
+    }, 60 * 1000);
+});
+
+// إنشاء جدول لفترة زمنية
 function buildPeriodEmbeds(startDate, endDate) {
     const embeds = [];
 
-    // تقسيم الفترة إلى أسابيع من السبت إلى الجمعة
     let weekStart = getWeekStart(startDate);
 
     while (weekStart <= endDate) {
         const weekEnd = addDays(weekStart, 6);
         const rows = [];
 
-        // العرض من السبت إلى الجمعة
         for (let i = 0; i < 7; i++) {
             const date = addDays(weekStart, i);
 
-            if (date < startDate || date > endDate) continue;
+            if (date < startDate || date > endDate) {
+                continue;
+            }
 
             const dayNumber = toDate(date).getUTCDay();
             const outside = sleepsOutside(date);
 
-            // السبت والخميس يظهران دائمًا
             const isRequiredDay =
                 dayNumber === 6 || dayNumber === 4;
 
-            // إخفاء أيام النوم في البيت باستثناء السبت والخميس
-            if (!isRequiredDay && !outside) continue;
+            const today = getToday();
+
+            if (
+                !isRequiredDay &&
+                !outside &&
+                date !== today
+            ) {
+                continue;
+            }
 
             const todayMark =
-                date === getToday() ? ' 📍 **اليوم**' : '';
+                date === today ? '📍 ' : '';
 
             const sleepStatus = outside
                 ? '🟢 **تحت**'
                 : '🔴 فوق';
 
             rows.push(
-            `**${todayMark} ${getDayName(date)}  |  __${formatDate(date)}__**` + ` ${sleepStatus}\n`
-           // `📅 \n` +
-            //sleepStatus
-        );
+                `**${todayMark}${getDayName(date)} | __${formatDate(date)}__** ${sleepStatus}`
+            );
         }
 
         if (rows.length > 0) {
@@ -222,9 +349,8 @@ function buildPeriodEmbeds(startDate, endDate) {
                 .setColor('#3498DB')
                 .setTitle('📅 جدول الفترة')
                 .setDescription(
-                 //   `**الفترة الكاملة:** ${formatDate(startDate)} - ${formatDate(endDate)}\n` +
-                     `الأسبوع: **__${formatDate(weekStart)}__**  -  **__${formatDate(weekEnd)}__**\n\n` +
-                    rows.join('\n')
+                    `الأسبوع: **${formatDate(weekStart)} - ${formatDate(weekEnd)}**\n\n` +
+                    rows.join('\n\n')
                 )
                 .setFooter({
                     text: 'جدول الفترة | تم إنشاؤه بواسطة أبو أحمد'
@@ -239,39 +365,18 @@ function buildPeriodEmbeds(startDate, endDate) {
     return embeds;
 }
 
-
+// تفاصيل يوم معين
 function buildDateEmbed(dateInput) {
-    // قبول التاريخ بصيغة 1/12/2026 أو 01/12/2026
-    const match = dateInput.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const dateString = parseDateInput(dateInput);
 
-    if (!match) {
+    if (!dateString) {
         return {
-            error: '❌ صيغة التاريخ غير صحيحة.\nاكتب التاريخ هكذا: `+تاريخ 1/12/2026`'
+            error:
+                '❌ التاريخ غير صحيح.\n' +
+                'اكتب التاريخ هكذا: `+تاريخ 1/12/2026`'
         };
     }
 
-    const day = Number(match[1]);
-    const month = Number(match[2]);
-    const year = Number(match[3]);
-
-    const date = new Date(Date.UTC(year, month - 1, day));
-
-    // التأكد من صحة التاريخ
-    if (
-        date.getUTCFullYear() !== year ||
-        date.getUTCMonth() !== month - 1 ||
-        date.getUTCDate() !== day
-    ) {
-        return {
-            error: '❌ التاريخ غير صحيح. تأكد من اليوم والشهر والسنة.'
-        };
-    }
-
-    const dateString =
-        `${year}-${String(month).padStart(2, '0')}-` +
-        `${String(day).padStart(2, '0')}`;
-
-    const dayName = getDayName(dateString);
     const outside = sleepsOutside(dateString);
 
     const sleepStatus = outside
@@ -282,126 +387,23 @@ function buildDateEmbed(dateInput) {
         .setColor(outside ? '#2ECC71' : '#3498DB')
         .setTitle('📅 تفاصيل')
         .setDescription(
-            `**اليوم:** ${dayName}\n` +
+            `**اليوم:** ${getDayName(dateString)}\n` +
             `**التاريخ:** ${formatDate(dateString)}\n\n` +
-            `${sleepStatus}`
+            sleepStatus
         )
         .setTimestamp(new Date());
 
     return { embed };
 }
 
-
-
-
-function buildEmbed() {
-    const today = getToday();
-    const weekStart = getScheduleStart(today);
-    const weekEnd = addDays(weekStart, 6);
-
-    const days = [];
-
-    // نعكس ترتيب العرض ليبدأ السبت من اليمين
-    for (let i = 0; i <= 6; i++) {
-        const date = addDays(weekStart, i);
-        const dayNumber = toDate(date).getUTCDay();
-
-        const outside = sleepsOutside(date);
-        const isRequiredDay = dayNumber === 6 || dayNumber === 4;
-
-        if (!isRequiredDay && !outside) continue;
-
-        const todayMark = date === today ? ' 📍' : '';
-        const sleepStatus = outside
-            ? '🟢 **تحت**'
-            : '🔴 فوق';
-
-        days.push(
-            `**${todayMark} ${getDayName(date)}  |  __${formatDate(date)}__**` + ` ${sleepStatus}\n`
-           // `📅 \n` +
-            //sleepStatus
-        );
-    }
-
-    const embed = new Discord.MessageEmbed()
-        .setColor('#3498DB')
-        .setTitle('📅 الــجـدول')
-        .setDescription(
-            `الـفـتـرة: **${formatDate(weekStart)}** - **${formatDate(weekEnd)}**\n\n` +
-            days.join('\n')
-        )
-        .setFooter({
-            text: 'تم إنشاؤه بواسطة أبو أحمد'
-        })
-        .setTimestamp(new Date());
-
-    return { embed, weekStart };
-}
-
-
-
-// تحديث الإيمبد نفسها تلقائيًا
-async function updateSchedule(force = false) {
-    if (updating) return;
-
-    updating = true;
-
-    try {
-        if (!saved.channelId || !saved.messageId) return;
-
-        const { embed, weekStart, today } = buildEmbed();
-
-        // لا تحدّث الرسالة إذا لم يتغير اليوم أو الأسبوع
-        if (
-            !force &&
-            saved.weekStart === weekStart &&
-            saved.lastDate === today
-        ) {
-            return;
-        }
-
-        const channel = await client.channels.fetch(saved.channelId);
-
-        if (!channel || !channel.isText()) return;
-
-        const message = await channel.messages.fetch(saved.messageId);
-
-        await message.edit({ embeds: [embed] });
-
-        saved.weekStart = weekStart;
-        saved.lastDate = today;
-
-        saveData();
-
-        console.log(
-            `تم تحديث الجدول: ${today} | الأسبوع يبدأ: ${weekStart}`
-        );
-    } catch (error) {
-        console.error('تعذر تحديث الجدول:', error.message);
-    } finally {
-        updating = false;
-    }
-}
-
-client.once('ready', async () => {
-    console.log(`🟢 ${client.user.tag}`);
-
-    // تحديث الجدول عند تشغيل البوت
-    await updateSchedule(true);
-
-    // فحص التاريخ كل دقيقة
-    setInterval(() => {
-        updateSchedule(false);
-    }, 60 * 1000);
-});
-
-// الأمر +جدول
+// استقبال الأوامر
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
+    const content = message.content.trim();
 
     // الأمر +فترة
-    const periodCommand = message.content.trim().match(
+    const periodCommand = content.match(
         /^\+فترة\s+(\S+)\s+(\S+)$/
     );
 
@@ -434,25 +436,25 @@ client.on('messageCreate', async message => {
         }
 
         try {
-            // Discord يسمح بحد أقصى 10 إيمبدات في الرسالة
+            // الحد الأقصى 10 إيمبدات لكل رسالة
             for (let i = 0; i < embeds.length; i += 10) {
                 await message.channel.send({
                     embeds: embeds.slice(i, i + 10)
                 });
             }
-
-            //await message.reply('✅ تم إنشاء جدول النوم للفترة المطلوبة.');
         } catch (error) {
             console.error('خطأ في إنشاء جدول الفترة:', error);
-            await message.reply('❌ تعذر إرسال جدول الفترة.');
+
+            await message.reply(
+                '❌ تعذر إرسال جدول الفترة.'
+            );
         }
 
         return;
     }
 
-
     // الأمر +تاريخ
-    const dateCommand = message.content.trim().match(
+    const dateCommand = content.match(
         /^\+تاريخ\s+(\S+)$/
     );
 
@@ -470,15 +472,15 @@ client.on('messageCreate', async message => {
         return;
     }
 
-
-    if (message.content.trim() !== `${PREFIX}${COMMAND}`) {
+    // الأمر +جدول
+    if (content !== `${PREFIX}${COMMAND}`) {
         return;
     }
 
     const { embed, weekStart, today } = buildEmbed();
 
     try {
-        // تحديث الرسالة القديمة إذا كانت في القناة نفسها
+        // تحديث الجدول السابق إذا كان في القناة نفسها
         if (
             saved.channelId === message.channel.id &&
             saved.messageId
@@ -488,7 +490,9 @@ client.on('messageCreate', async message => {
                     saved.messageId
                 );
 
-                await oldMessage.edit({ embeds: [embed] });
+                await oldMessage.edit({
+                    embeds: [embed]
+                });
 
                 saved.weekStart = weekStart;
                 saved.lastDate = today;
@@ -498,11 +502,11 @@ client.on('messageCreate', async message => {
                 await message.reply('✅ تم تحديث الجدول.');
                 return;
             } catch (error) {
-                // إنشاء رسالة جديدة إذا لم تعد الرسالة القديمة موجودة
                 saved.messageId = null;
             }
         }
 
+        // إنشاء جدول جديد إذا لم توجد رسالة محفوظة
         const newMessage = await message.channel.send({
             embeds: [embed]
         });
@@ -515,13 +519,12 @@ client.on('messageCreate', async message => {
         saveData();
 
         await message.reply('✅ تم إنشاء الجدول.');
-
     } catch (error) {
         console.error('خطأ في إنشاء الجدول:', error);
 
-        await message.reply('❌ حدث خطأ أثناء إنشاء الجدول.');
+        await message.reply(
+            '❌ حدث خطأ أثناء إنشاء الجدول.'
+        );
     }
 });
-
-
 client.login(process.env.token);
