@@ -47,30 +47,6 @@ function saveData() {
     fs.writeFileSync(DATA_FILE, JSON.stringify(saved, null, 2));
 }
 
-// حالة البوت
-client.once('ready', () => {
-    console.clear();
-    console.log(`${client.user.tag} is Online 🟢`);
-
-    client.user.setStatus('idle');
-
-    const status = [
-        `${client.user.username}`,
-        'My Dev M7md6565',
-        `My Prefix ${PREFIX} | Mention Me`
-    ];
-
-    client.user.setActivity(
-        status[Math.floor(Math.random() * status.length)]
-    );
-
-    setInterval(() => {
-        client.user.setActivity(
-            status[Math.floor(Math.random() * status.length)]
-        );
-    }, 8000);
-});
-
 // تاريخ اليوم بتوقيت فلسطين
 function getToday() {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -136,7 +112,6 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
-// أسماء الأيام
 const DAYS = [
     'الأحد',
     'الاثنين',
@@ -158,7 +133,7 @@ function sleepsOutside(dateString) {
     return ((difference % 2) + 2) % 2 === 0;
 }
 
-// تحويل التاريخ من DD/MM/YYYY إلى YYYY-MM-DD
+// تحويل DD/MM/YYYY إلى YYYY-MM-DD
 function parseDateInput(input) {
     const match = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
 
@@ -181,7 +156,7 @@ function parseDateInput(input) {
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-// إنشاء إيمبد الجدول الرئيسي
+// إنشاء الجدول الرئيسي
 function buildEmbed() {
     const today = getToday();
     const weekStart = getScheduleStart(today);
@@ -189,7 +164,7 @@ function buildEmbed() {
 
     const days = [];
 
-    // ترتيب الأيام من السبت إلى الجمعة
+    // العرض من السبت إلى الجمعة
     for (let i = 0; i < 7; i++) {
         const date = addDays(weekStart, i);
         const dayNumber = toDate(date).getUTCDay();
@@ -200,18 +175,16 @@ function buildEmbed() {
         const isRequiredDay =
             dayNumber === 6 || dayNumber === 4;
 
-        // إظهار أيام الخارج، والسبت والخميس،
-        // واليوم الحالي حتى لو كان النوم في البيت
-        if (!isRequiredDay && !outside && date !== today) {
+        // إخفاء أيام النوم فوق، باستثناء السبت والخميس
+        if (!isRequiredDay && !outside) {
             continue;
         }
 
+        // الدبوس يظهر فقط إذا كان اليوم الحالي موجودًا بالجدول
         const todayMark = date === today ? '📍 ' : '';
 
         const dayEmoji =
-            dayNumber === 6 || dayNumber === 4
-                ? '⬅️ '
-                : '';
+            isRequiredDay ? '⬅️ ' : '';
 
         const sleepStatus = outside
             ? '🟢 **تحت**'
@@ -239,20 +212,18 @@ function buildEmbed() {
     return { embed, weekStart, today };
 }
 
-// تحديث رسالة الجدول المحفوظة تلقائيًا
+// تحديث رسالة الجدول تلقائيًا
 async function updateSchedule(force = false) {
     if (updating) return;
 
     updating = true;
 
     try {
-        if (!saved.channelId || !saved.messageId) {
-            return;
-        }
+        if (!saved.channelId || !saved.messageId) return;
 
         const { embed, weekStart, today } = buildEmbed();
 
-        // لا نعدّل الرسالة إذا لم يتغير اليوم أو الأسبوع
+        // لا تحدّث الرسالة إذا لم يتغير اليوم أو الأسبوع
         if (
             !force &&
             saved.weekStart === weekStart &&
@@ -264,13 +235,13 @@ async function updateSchedule(force = false) {
         const channel = await client.channels.fetch(saved.channelId);
 
         if (!channel || !channel.isText()) {
-            console.error('القناة غير موجودة أو ليست قناة نصية.');
+            console.error('القناة غير موجودة أو ليست نصية.');
             return;
         }
 
         const message = await channel.messages.fetch(saved.messageId);
 
-        // تعديل نفس الإيمبد، وليس إرسال رسالة جديدة
+        // تعديل الرسالة نفسها
         await message.edit({ embeds: [embed] });
 
         saved.weekStart = weekStart;
@@ -279,30 +250,29 @@ async function updateSchedule(force = false) {
         saveData();
 
         console.log(
-            `✅ تم تحديث الجدول | ${today} | بداية الأسبوع: ${weekStart}`
+            `✅ تم تحديث الجدول | اليوم: ${today} | الأسبوع: ${weekStart}`
         );
     } catch (error) {
-        console.error('❌ تعذر تحديث الجدول:', error.message);
+        console.error('تعذر تحديث الجدول:', error.message);
     } finally {
         updating = false;
     }
 }
 
-// تشغيل التحديث التلقائي
+// التحديث عند تشغيل البوت، ثم فحص التاريخ كل دقيقة
 client.once('ready', async () => {
-    // تحديث الجدول عند تشغيل البوت
+    console.log(`🟢 ${client.user.tag}`);
+
     await updateSchedule(true);
 
-    // فحص التاريخ كل دقيقة
     setInterval(() => {
         updateSchedule(false);
     }, 60 * 1000);
 });
 
-// إنشاء جدول لفترة زمنية
+// إنشاء جداول الفترات
 function buildPeriodEmbeds(startDate, endDate) {
     const embeds = [];
-
     let weekStart = getWeekStart(startDate);
 
     while (weekStart <= endDate) {
@@ -322,18 +292,14 @@ function buildPeriodEmbeds(startDate, endDate) {
             const isRequiredDay =
                 dayNumber === 6 || dayNumber === 4;
 
-            const today = getToday();
-
-            if (
-                !isRequiredDay &&
-                !outside &&
-                date !== today
-            ) {
+            // نفس القاعدة: إخفاء أيام النوم فوق
+            // إلا السبت والخميس
+            if (!isRequiredDay && !outside) {
                 continue;
             }
 
-            const todayMark =
-                date === today ? '📍 ' : '';
+            const today = getToday();
+            const todayMark = date === today ? '📍 ' : '';
 
             const sleepStatus = outside
                 ? '🟢 **تحت**'
@@ -365,7 +331,7 @@ function buildPeriodEmbeds(startDate, endDate) {
     return embeds;
 }
 
-// تفاصيل يوم معين
+// تفاصيل تاريخ معين
 function buildDateEmbed(dateInput) {
     const dateString = parseDateInput(dateInput);
 
@@ -436,7 +402,7 @@ client.on('messageCreate', async message => {
         }
 
         try {
-            // الحد الأقصى 10 إيمبدات لكل رسالة
+            // ديسكورد يسمح بعشرة إيمبدات لكل رسالة
             for (let i = 0; i < embeds.length; i += 10) {
                 await message.channel.send({
                     embeds: embeds.slice(i, i + 10)
@@ -444,10 +410,7 @@ client.on('messageCreate', async message => {
             }
         } catch (error) {
             console.error('خطأ في إنشاء جدول الفترة:', error);
-
-            await message.reply(
-                '❌ تعذر إرسال جدول الفترة.'
-            );
+            await message.reply('❌ تعذر إرسال جدول الفترة.');
         }
 
         return;
@@ -480,7 +443,6 @@ client.on('messageCreate', async message => {
     const { embed, weekStart, today } = buildEmbed();
 
     try {
-        // تحديث الجدول السابق إذا كان في القناة نفسها
         if (
             saved.channelId === message.channel.id &&
             saved.messageId
@@ -490,9 +452,7 @@ client.on('messageCreate', async message => {
                     saved.messageId
                 );
 
-                await oldMessage.edit({
-                    embeds: [embed]
-                });
+                await oldMessage.edit({ embeds: [embed] });
 
                 saved.weekStart = weekStart;
                 saved.lastDate = today;
@@ -506,7 +466,6 @@ client.on('messageCreate', async message => {
             }
         }
 
-        // إنشاء جدول جديد إذا لم توجد رسالة محفوظة
         const newMessage = await message.channel.send({
             embeds: [embed]
         });
@@ -521,10 +480,8 @@ client.on('messageCreate', async message => {
         await message.reply('✅ تم إنشاء الجدول.');
     } catch (error) {
         console.error('خطأ في إنشاء الجدول:', error);
-
-        await message.reply(
-            '❌ حدث خطأ أثناء إنشاء الجدول.'
-        );
+        await message.reply('❌ حدث خطأ أثناء إنشاء الجدول.');
     }
 });
+
 client.login(process.env.token);
