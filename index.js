@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
 const Discord = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-
+ف
 const client = new Discord.Client({
     intents: [
         Discord.Intents.FLAGS.GUILDS,
